@@ -93,6 +93,17 @@
         .menu-container.expanded .menu-item:nth-child(4) { transform: translate(50px, -50px) scale(1); }
         .menu-container.expanded .menu-item:nth-child(5) { transform: translate(70px, 0px) scale(1); }
         .menu-container.expanded .menu-item:nth-child(6) { transform: translate(0px, 70px) scale(1); }
+
+        /* Vertical stack on mobile/small screens */
+        @media (max-width: 600px) {
+            .menu-container.expanded .menu-item:nth-child(1) { transform: translate(0px, -65px) scale(1); }
+            .menu-container.expanded .menu-item:nth-child(2) { transform: translate(0px, -125px) scale(1); }
+            .menu-container.expanded .menu-item:nth-child(3) { transform: translate(0px, -185px) scale(1); }
+            .menu-container.expanded .menu-item:nth-child(4) { transform: translate(0px, -245px) scale(1); }
+            .menu-container.expanded .menu-item:nth-child(5) { transform: translate(0px, -305px) scale(1); }
+            .menu-container.expanded .menu-item:nth-child(6) { transform: translate(0px, -365px) scale(1); }
+        }
+
         #assistive-touch { 
             cursor: grab; 
             touch-action: none; /* FIX: Prevent scrolling while dragging */
