@@ -218,6 +218,26 @@ function dragEnd(e) {
     
     // Determine if it was a click
     if (!hasDragged && elements.menuContainer) {
+        if (!elements.menuContainer.classList.contains('expanded')) {
+            const rect = elements.assistiveTouch.getBoundingClientRect();
+            const distFromRight = window.innerWidth - rect.right;
+            const distFromLeft = rect.left;
+            const distFromTop = rect.top;
+            const distFromBottom = window.innerHeight - rect.bottom;
+
+            elements.menuContainer.classList.remove('expand-vertical-up', 'expand-vertical-down');
+
+            // If the button is too close to any edge for circular expansion
+            if (distFromRight < 80 || distFromLeft < 80 || distFromTop < 80 || distFromBottom < 80) {
+                // Determine whether to stack upwards or downwards based on available space
+                // The vertical stack is about ~380px tall
+                if (distFromTop > 380) {
+                    elements.menuContainer.classList.add('expand-vertical-up');
+                } else {
+                    elements.menuContainer.classList.add('expand-vertical-down');
+                }
+            }
+        }
         elements.menuContainer.classList.toggle('expanded');
     }
 }
@@ -428,6 +448,18 @@ async function startEmulator(config) {
                 const inactiveScreen = (activeScreen === canvas) ? textScreen : canvas;
                 if(inactiveScreen) {
                     inactiveScreen.style.transform = '';
+                }
+
+                // Keep Assistive Touch on screen during resize/orientation change
+                if (elements.assistiveTouch && elements.assistiveTouch.style.left) {
+                    const maxX = window.innerWidth - elements.assistiveTouch.offsetWidth;
+                    const maxY = window.innerHeight - elements.assistiveTouch.offsetHeight;
+
+                    const currentLeft = parseFloat(elements.assistiveTouch.style.left);
+                    const currentTop = parseFloat(elements.assistiveTouch.style.top);
+
+                    elements.assistiveTouch.style.left = `${Math.max(0, Math.min(currentLeft, maxX))}px`;
+                    elements.assistiveTouch.style.top = `${Math.max(0, Math.min(currentTop, maxY))}px`;
                 }
             };
 
