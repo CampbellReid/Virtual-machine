@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Web VM Screen</title>
     <!-- Stricter CSP: scripts only from self and trusted CDNs -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; connect-src 'self' wss: https://* blob:; img-src 'self' data: https:; media-src 'self' blob:;">
@@ -16,14 +16,18 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        html {
+            height: 100%;
+            width: 100%;
+        }
         body {
             font-family: 'Inter', sans-serif;
             overflow: hidden;
             background-color: #000;
             margin: 0;
             padding: 0;
-            height: 100vh;
-            width: 100vw;
+            height: 100dvh;
+            width: 100dvw;
             touch-action: none; /* Prevent browser zooming/panning */
         }
         .spinner {
@@ -118,9 +122,15 @@
         .status-led { width: 6px; height: 6px; border-radius: 50%; background: #444; }
         .status-led.running { background: #10b981; box-shadow: 0 0 8px #10b981; }
         .status-led.halted { background: #ef4444; }
+
+        @media (orientation: landscape) and (max-height: 500px) {
+            #virtual-keyboard .key { height: 24px !important; font-size: 10px !important; }
+            #virtual-keyboard .key-row { margin-bottom: 2px !important; }
+            #virtual-keyboard { padding: 2px !important; }
+        }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-300 flex items-center justify-center h-screen antialiased">
+<body class="bg-gray-900 text-gray-300 flex items-center justify-center antialiased">
 
     <!-- Global Error Overlay -->
     <div id="error-overlay" class="absolute inset-0 bg-red-900/95 z-[100] hidden flex flex-col items-center justify-center p-8 text-center">

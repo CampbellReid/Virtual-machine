@@ -429,6 +429,18 @@ async function startEmulator(config) {
                 if(inactiveScreen) {
                     inactiveScreen.style.transform = '';
                 }
+
+                // Keep Assistive Touch on screen during resize/orientation change
+                if (elements.assistiveTouch && elements.assistiveTouch.style.left) {
+                    const maxX = window.innerWidth - elements.assistiveTouch.offsetWidth;
+                    const maxY = window.innerHeight - elements.assistiveTouch.offsetHeight;
+
+                    const currentLeft = parseFloat(elements.assistiveTouch.style.left);
+                    const currentTop = parseFloat(elements.assistiveTouch.style.top);
+
+                    elements.assistiveTouch.style.left = `${Math.max(0, Math.min(currentLeft, maxX))}px`;
+                    elements.assistiveTouch.style.top = `${Math.max(0, Math.min(currentTop, maxY))}px`;
+                }
             };
 
             emulator.add_listener("screen-set-mode", () => setTimeout(fit, 100));
