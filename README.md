@@ -2,7 +2,7 @@
 
 A high-performance, mobile-first virtual machine emulator running entirely in the browser. Built with **libv86**, **WebAssembly**, and a modern **Event-Driven Architecture**.
 
-![Status](https://img.shields.io/badge/Status-Stable-green) ![Tech](https://img.shields.io/badge/Tech-WASM%20%7C%20IndexedDB-blue)
+![Status](https://img.shields.io/badge/Status-Stable-green) ![Tech](https://img.shields.io/badge/Tech-WASM%20%7C%20IndexedDB-blue) ![GitHub](https://img.shields.io/badge/GitHub-Quincunx33%2FVirtual--machine-blue?logo=github&link=https%3A%2F%2Fgithub.com%2FQuincunx33%2FVirtual-machine)
 
 ## 🚀 Key Improvements in v2.0
 
@@ -67,7 +67,7 @@ The VM manager specifically listens for WebAssembly OOM (Out of Memory) errors. 
 
 ## 🤝 Contributing
 
-1. Fork the repo.
+1. Fork the [repo](https://github.com/Quincunx33/Virtual-machine).
 2. Optimize `vm-manager.js` logic.
 3. Submit a PR.
 
