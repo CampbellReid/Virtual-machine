@@ -276,7 +276,12 @@ if(elements.virtualKeyboard) {
     ['mouseup', 'touchend', 'mouseleave', 'touchcancel'].forEach(e => eventManager.add(elements.virtualKeyboard, e, release));
 }
 
-// --- Emulator Logic ---
+// --- Terminal / WebAssembly Logic ---
+let xterm = null;
+let ptySlave = null;
+let ptyMaster = null;
+let wasmWorker = null;
+
 function initDB() {
     return new Promise((resolve, reject) => {
         const req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -344,119 +349,90 @@ async function saveSnapshot() {
     }
 }
 
+function getNetParam() {
+    var vars = location.search.substring(1).split('&');
+    for (var i = 0; i < vars.length; i++) {
+        var kv = vars[i].split('=');
+        if (decodeURIComponent(kv[0]) == 'net') {
+            return {
+                mode: kv[1],
+                param: kv[2],
+            };
+        }
+    }
+    return null;
+}
+
 async function startEmulator(config) {
     if (!config) throw new Error("VM configuration is missing.");
     
-    const v86Config = {
-        wasm_path: "v86.wasm",
-        screen_container: elements.screenContainer,
-        bios: { url: "seabios.bin" },
-        vga_bios: { url: "vgabios.bin" },
-        memory_size: (config.ram || 64) * 1024 * 1024,
-        vga_memory_size: (config.vram || 8) * 1024 * 1024,
-        autostart: true,
-        network_relay_url: config.network ? "wss://relay.widgetry.org/" : undefined,
-        cmdline: config.cmdline || ""
-    };
+    // Find the boot file (usually cdromFile or hdaFile in WebVM config)
+    let bootFile = config.cdromFile || config.hdaFile;
+    if (!bootFile) throw new Error("No boot file specified in the configuration.");
     
-    const addUrl = (obj, key) => {
-        if (obj instanceof Blob || obj instanceof File) {
-            const url = URL.createObjectURL(obj);
-            activeBlobUrls.add(url);
-            v86Config[key] = { url };
-        }
-    };
-    
-    // --- BUG FIX: Prioritize custom BIOS files over defaults ---
-    addUrl(config.biosFile, 'bios');
-    addUrl(config.vgaBiosFile, 'vga_bios');
-    // --- End Bug Fix ---
-    
-    addUrl(config.cdromFile, 'cdrom');
-    addUrl(config.fdaFile, 'fda');
-    addUrl(config.fdbFile, 'fdb');
-    addUrl(config.hdaFile, 'hda');
-    addUrl(config.hdbFile, 'hdb');
-    addUrl(config.bzimageFile, 'bzimage');
-    addUrl(config.initrdFile, 'initrd');
-    
-    if (config.initial_state_data) {
-        if (config.initial_state_data instanceof ArrayBuffer) {
-            v86Config.initial_state = { buffer: config.initial_state_data };
-        } else {
-            addUrl(config.initial_state_data, 'initial_state');
-        }
-    }
-    
+    // Create an object URL for the file so the worker can fetch it
+    let workerImage = URL.createObjectURL(bootFile);
+    activeBlobUrls.add(workerImage);
+
     try {
-        emulator = new V86(v86Config);
-        
-        emulator.add_listener("emulator-ready", () => {
-            elements.loadingIndicator.classList.add('hidden');
-            if (channel) {
-                channel.postMessage({ type: 'VM_STARTED', id: config.id });
+        // Initialize xterm.js
+        const terminalContainer = document.getElementById("terminal");
+        if (!terminalContainer) throw new Error("Terminal container not found");
+
+        xterm = new Terminal();
+        xterm.open(terminalContainer);
+
+        // Initialize xterm-pty
+        const pty = openpty();
+        ptyMaster = pty.master;
+        ptySlave = pty.slave;
+
+        let termios = ptySlave.ioctl("TCGETS");
+        termios.iflag &= ~(/*IGNBRK | BRKINT | PARMRK |*/ ISTRIP | INLCR | IGNCR | ICRNL | IXON);
+        termios.oflag &= ~(OPOST);
+        termios.lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+        ptySlave.ioctl("TCSETS", new Termios(termios.iflag, termios.oflag, termios.cflag, termios.lflag, termios.cc));
+
+        xterm.loadAddon(ptyMaster);
+
+        // Initialize the WebWorker
+        wasmWorker = new Worker("./worker.js" + location.search);
+
+        var nwStack;
+        var netParam = getNetParam();
+
+        if (netParam) {
+            if (netParam.mode == 'delegate') {
+                nwStack = delegate(wasmWorker, workerImage, netParam.param);
+            } else if (netParam.mode == 'browser') {
+                nwStack = newStack(wasmWorker, workerImage, new Worker("./stack-worker.js" + location.search), location.origin + "/c2w-net-proxy.wasm");
             }
-            
-            const lockHandler = () => {
-                if(emulator && emulator.is_running()) emulator.lock_mouse();
-            };
-            eventManager.add(elements.screenContainer, 'click', lockHandler);
-            
-            const fit = () => {
-                const canvas = elements.screenContainer.querySelector('canvas');
-                const textScreen = elements.screenContainer.querySelector('div');
-                
-                // Determine which screen is active
-                const activeScreen = (canvas && canvas.style.display !== 'none') ? canvas : textScreen;
+        }
 
-                if (!activeScreen) return;
-
-                // Use offsetWidth and offsetHeight as they give the element's layout size
-                // before any CSS transforms are applied. This is crucial for correct scaling.
-                const width = activeScreen.offsetWidth;
-                const height = activeScreen.offsetHeight;
-                
-                // If dimensions are invalid, do nothing
-                if (!width || !height || width <= 1 || height <= 1) {
-                    return;
-                }
-
-                const scale = Math.min(window.innerWidth / width, window.innerHeight / height);
-                activeScreen.style.transform = `scale(${scale})`;
-
-                // Ensure the other screen isn't scaled
-                const inactiveScreen = (activeScreen === canvas) ? textScreen : canvas;
-                if(inactiveScreen) {
-                    inactiveScreen.style.transform = '';
-                }
-            };
-
-            emulator.add_listener("screen-set-mode", () => setTimeout(fit, 100));
-            eventManager.add(window, 'resize', fit);
-            fit();
-            
-            screenUpdateInterval = setInterval(() => {
-                if(elements.statusLed) {
-                    const running = emulator.is_running();
-                    elements.statusLed.className = running ? 'status-led running' : 'status-led halted';
-                    elements.statusText.textContent = running ? "RUNNING" : "HALTED";
-                }
-            }, 1000);
-        });
-
-        emulator.add_listener("emulator-error", (e) => {
-            console.error("V86 Error:", e);
-            fullCleanup();
-            if (elements.errorOverlay) {
-                elements.errorMessage.textContent = e.message || "An unknown emulator error occurred.";
-                elements.errorOverlay.classList.remove('hidden');
-            }
-        });
+        if (!nwStack) {
+            wasmWorker.postMessage({type: "init", imagename: workerImage});
+        }
         
+        new TtyServer(ptySlave).start(wasmWorker, nwStack);
+
+        elements.loadingIndicator.classList.add('hidden');
+        if (channel) {
+            channel.postMessage({ type: 'VM_STARTED', id: config.id });
+        }
+
+        screenUpdateInterval = setInterval(() => {
+            if(elements.statusLed) {
+                // Determine running status based on worker existence
+                const running = wasmWorker !== null;
+                elements.statusLed.className = running ? 'status-led running' : 'status-led halted';
+                elements.statusText.textContent = running ? "RUNNING" : "HALTED";
+            }
+        }, 1000);
+
     } catch(e) {
         console.error("Emulator instantiation failed:", e);
         if (elements.errorOverlay) {
-            elements.errorMessage.textContent = "Failed to create V86 instance. Your browser might not be supported.";
+            elements.errorMessage.textContent = e.message || "Failed to start container2wasm instance.";
             elements.errorOverlay.classList.remove('hidden');
         }
     }

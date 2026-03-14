@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Web VM Screen</title>
     <!-- Stricter CSP: scripts only from self and trusted CDNs -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; connect-src 'self' wss: https://* blob:; img-src 'self' data: https:; media-src 'self' blob:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; connect-src 'self' wss: https://* blob:; img-src 'self' data: https:; media-src 'self' blob:;">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@4.17.0/css/xterm.css">
     
     <!-- App Icon & Manifest -->
     <link rel="icon" href="IMG_1074.png">
@@ -39,29 +40,18 @@
         .key { transition: background-color 0.1s ease; }
         .key.pressed { background-color: #4f46e5; transform: scale(0.98); }
 
-        /* 
-           FIX: Use Flexbox for robust centering. 
-           This ensures the VM screen is always in the middle, regardless of aspect ratio.
-        */
-        #screen_container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        #terminal {
             width: 100%;
             height: 100%;
             background: #000;
             overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        
-        /* 
-           Target the canvas and text div injected by libv86.
-           We prevent them from shrinking so JS can scale them down accurately.
-        */
-        #screen_container > canvas,
-        #screen_container > div {
-            flex-shrink: 0;
-            transform-origin: center center;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5); /* Nice glow for the screen */
+
+        #terminal .terminal {
+            padding: 10px;
         }
         
         /* Assistive Touch Menu */
@@ -138,11 +128,7 @@
         <span id="status-text">INIT</span>
     </div>
 
-    <div id="screen_container">
-        <!-- libv86 elements will be injected here -->
-        <div style="white-space: pre; font: 14px monospace; line-height: 14px; position: relative; background: black;"></div>
-        <canvas style="display: none; background: black;"></canvas>
-    </div>
+    <div id="terminal"></div>
 
     <div id="loading-indicator" class="fixed inset-0 flex flex-col items-center justify-center z-20 text-center p-6 bg-black/80 backdrop-blur-sm">
         <div class="spinner"></div>
@@ -179,7 +165,10 @@
         </div>
     </div>
 
-    <script src="libv86.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm@4.17.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-pty@0.9.4/index.js"></script>
+    <script src="stack.js"></script>
+    <script src="ws-delegate.js"></script>
     <script src="vm-manager.js"></script>
 </body>
 </html>
